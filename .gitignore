@@ -1,0 +1,5 @@
+# Ignore Data
+Data/*
+
+# Don't ignore metadata
+!Data/Metadata.csv

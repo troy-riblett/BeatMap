@@ -4,7 +4,8 @@ import pandas as pd
 import os
 from io import BytesIO
 import zipfile
-
+import shutil
+import glob
 
 def get_all_songs_metadata():
     song_dict = {}
@@ -16,7 +17,7 @@ def get_all_songs_metadata():
         song_dict[col] = []
 
     last_page_num = int(requests.get("https://beatsaver.com/api/maps/latest/0").json()["lastPage"])
-    logging.info("Last page is " + str(last_page_num))
+    logging.debug("Last page is " + str(last_page_num))
 
     for page in range(0, last_page_num + 1):
         logging.info("Starting page " + str(page))
@@ -95,7 +96,7 @@ def _add_bsaber_data_to_dict(song_dict, resp_json):
 def create_dir(key):
     directory = "./Data/{}".format(key)
     if not os.path.exists(directory):
-        logging.info("Path for " + key + " didn't already exist. Creating")
+        logging.debug("Path for " + key + " didn't already exist. Creating")
         os.makedirs(directory)
     return directory
 
@@ -103,23 +104,37 @@ def create_dir(key):
 def download_song(key):
     directory = create_dir(key)
 
-    if os.path.isfile("./Data/{}/song.egg".format(key)) or os.path.isfile("./Data/{}/song.ogg".format(key)):
+    if already_downloaded(key):
         logging.warning("Songs already downloaded for key " + key)
-        return False
+    else:
+        # Get the metadata and the song download link from the metadata
+        song_zip = requests.get("https://beatsaver.com/api/download/key/{}".format(key), stream=True)
+        os.chdir(directory)
 
-    os.chdir(directory)
+        if song_zip.ok:
+            # Extract to a zip file
+            z = zipfile.ZipFile(BytesIO(song_zip.content))
+            z.extractall()
 
-    # Get the metadata and the song download link from the metadata
-    song_zip = requests.get("https://beatsaver.com/api/download/key/{}".format(key), stream=True)
+            file_list = os.listdir(".")
+            for file in file_list:
+                # Clean up non-data files like cover, and random lightmap.exe
+                if not file.endswith(".dat") and not file.endswith(".egg") and not file.endswith(".ogg"):
+                    # There are also occasionally folders that are created. We don't need those either
+                    if os.path.isfile(file):
+                        os.remove(file)
+                    else:
+                        shutil.rmtree(file)
+        else:
+            logging.warning("Could not get files for key {}. Response code {}".format(key, song_zip.status_code))
+            # Create a file in the folder showing that this key is invalid
+            open("invalid.txt", "a").close()
 
-    # Extract to a zip file
-    z = zipfile.ZipFile(BytesIO(song_zip.content))
-    z.extractall()
+        os.chdir("../..")
 
-    file_list = os.listdir(".")
-    for file in file_list:
-        # Have some non-data files like the cover and possibly lightmap.exe that we don't want to clutter things up
-        if not file.endswith(".dat") and not file.endswith(".egg") and not file.endswith(".ogg"):
-            os.remove(file)
 
-    os.chdir("../..")
+def already_downloaded(key):
+    lookup1 = "./Data/{}/*.egg".format(key)
+    lookup2 = "./Data/{}/*.ogg".format(key)
+    lookup3 = "./Data/{}/invalid.txt".format(key)
+    return len(glob.glob(lookup1)) > 0 or len(glob.glob(lookup2)) > 0 or len(glob.glob(lookup3)) > 0
