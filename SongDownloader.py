@@ -7,7 +7,10 @@ import zipfile
 import shutil
 import glob
 
+
 def get_all_songs_metadata():
+    """Retrieves metadata for everysong on the beatsaver site. Does not have any checks for whether the song
+    data has already been downloaded"""
     song_dict = {}
     song_columns = ["key", "level_author_name", "song_name", "song_sub_name", "bpm", "upvotes", "downvotes", "plays", "upload_date",
                     "downloads", "download_url", "overall_rating", "fun_factor", "rhythm", "flow",
@@ -33,6 +36,7 @@ def get_all_songs_metadata():
 
 
 def get_song_metadata_for_page(song_dict, page_num):
+    """Gets the information for all of the songs on a passed in page and returns them to song_dict"""
     data = requests.get("https://beatsaver.com/api/maps/latest/{}".format(page_num)).json()
 
     logging.debug(data["docs"])
@@ -94,6 +98,7 @@ def _add_bsaber_data_to_dict(song_dict, resp_json):
 
 
 def create_dir(key):
+    """Creates a folder for the passed in key if one does not already exist. Returns the directory name"""
     directory = "./Data/{}".format(key)
     if not os.path.exists(directory):
         logging.debug("Path for " + key + " didn't already exist. Creating")
@@ -102,6 +107,7 @@ def create_dir(key):
 
 
 def download_song(key):
+    """Perform the actual song download"""
     directory = create_dir(key)
 
     if already_downloaded(key):
@@ -134,6 +140,7 @@ def download_song(key):
 
 
 def already_downloaded(key):
+    """Check if the song file has already been downloaded. Return true if it has"""
     lookup1 = "./Data/{}/*.egg".format(key)
     lookup2 = "./Data/{}/*.ogg".format(key)
     lookup3 = "./Data/{}/invalid.txt".format(key)

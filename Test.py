@@ -1,7 +1,8 @@
 import SongDownloader
 import logging
+import soundfile as sf
+
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    SongDownloader.download_song("569")
-    SongDownloader.download_song("570")
+    f = sf.SoundFile("./Data/52cc/song.egg")
+    print(len(f) / f.samplerate)
